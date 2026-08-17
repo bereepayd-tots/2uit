@@ -1,0 +1,1065 @@
+import { useState } from "react";
+import {
+  Home, ClipboardCheck, Users, Bell, User,
+  Rss, Compass, GitBranch, FileText, FlaskConical,
+  MessagesSquare, Mail, Terminal, FileCheck, BookOpen,
+  Search, Plus, MoreVertical, Star, Heart, MessageCircle, Zap,
+  Circle, X, CheckCircle2, XCircle, Loader2, UserPlus, Briefcase,
+  Send, Plug, BadgeCheck, ToggleLeft, ToggleRight, Menu as MenuIcon,
+  LogOut, Settings, HelpCircle, Pencil, Flag, Link2, Trash2, TrendingUp, ChevronLeft,
+} from "lucide-react";
+
+// ---- design tokens -------------------------------------------------
+const c = {
+  bgDeep: "#0B2A43",
+  bgPanel: "#0F3555",
+  bgPanelRaised: "#123E64",
+  grid: "rgba(127,168,201,0.10)",
+  gridStrong: "rgba(127,168,201,0.18)",
+  ink: "#EAF2F8",
+  inkMuted: "#7FA8C9",
+  inkFaint: "#4E7495",
+  copper: "#CE8452",
+  copperSoft: "rgba(206,132,82,0.16)",
+  teal: "#5FD9C6",
+  red: "#E0725F",
+  border: "rgba(127,168,201,0.28)",
+};
+
+const displayFont = "'Space Grotesk', sans-serif";
+const bodyFont = "'IBM Plex Sans', sans-serif";
+const monoFont = "'IBM Plex Mono', monospace";
+
+// ---- static nav config ------------------------------------------------
+const primaryTabs = [
+  { id: "home", label: "Home", icon: Home },
+  { id: "test", label: "Test", icon: ClipboardCheck },
+  { id: "colleagues", label: "Colleagues", icon: Users },
+  { id: "progress", label: "Progress", icon: TrendingUp },
+  { id: "profile", label: "Profile", icon: User },
+];
+
+const secondaryTabs = [
+  { id: "feed", label: "Feed", icon: Rss },
+  { id: "explore", label: "Explore", icon: Compass },
+  { id: "dependencies", label: "Dependencies", icon: GitBranch },
+  { id: "contracts", label: "Contracts", icon: FileText },
+  { id: "experiments", label: "Experiments", icon: FlaskConical },
+];
+
+const bottomTabs = [
+  { id: "threads", label: "Threads", icon: MessagesSquare },
+  { id: "message", label: "Message", icon: Mail },
+  { id: "interface", label: "Interface", icon: Terminal },
+  { id: "evidence", label: "Evidence", icon: FileCheck },
+  { id: "principles", label: "Principles", icon: BookOpen },
+];
+
+// ---- sample data --------------------------------------------------------
+const initialPosts = [
+  {
+    id: 1, initials: "JS", name: "J. Santini", role: "Senior Backend Engineer",
+    status: "online", time: "2h",
+    title: "Event-sourced billing pipeline",
+    body: "Blueprint for a CQRS billing system handling 40k tx/sec with replayable ledgers.",
+    tags: ["systems", "distributed"], intents: 7, comments: 12, likes: 128,
+  },
+  {
+    id: 2, initials: "KO", name: "K. Owusu", role: "Site Reliability Lead",
+    status: "away", time: "5h",
+    title: "Chaos game-day: region failover",
+    body: "Ran a full us-east loss simulation. Recovery held at 94s, below our 120s SLO. Runbook attached as evidence.",
+    tags: ["reliability", "postmortem"], intents: 3, comments: 9, likes: 76,
+  },
+  {
+    id: 3, initials: "MF", name: "M. Ferreira", role: "Platform Engineer",
+    status: "online", time: "9h",
+    title: "gRPC gateway migration, phase one",
+    body: "Dual-writing REST and gRPC behind the same contract. Looking for a second reviewer on the deprecation timeline.",
+    tags: ["platform", "contracts"], intents: 5, comments: 4, likes: 41,
+  },
+  {
+    id: 4, initials: "AK", name: "A. Kapoor", role: "Data Infrastructure Engineer",
+    status: "offline", time: "1d",
+    title: "Backfilling 2B rows, zero downtime",
+    body: "Dual-write plus shadow-read approach for the ledger backfill. Trade-offs on consistency window documented below.",
+    tags: ["data", "trade-offs"], intents: 11, comments: 18, likes: 203,
+  },
+];
+
+const testRuns = [
+  { id: 1, name: "billing-pipeline / integration", status: "passed", duration: "4m 12s", time: "10m ago" },
+  { id: 2, name: "gateway-migration / contract", status: "running", duration: "1m 40s", time: "now" },
+  { id: 3, name: "ledger-backfill / consistency", status: "failed", duration: "2m 03s", time: "1h ago" },
+  { id: 4, name: "chaos / region-failover", status: "passed", duration: "9m 55s", time: "5h ago" },
+];
+
+const colleagues = [
+  { id: 1, initials: "JS", name: "J. Santini", role: "Senior Backend Engineer", status: "online", mutual: 12 },
+  { id: 2, initials: "KO", name: "K. Owusu", role: "Site Reliability Lead", status: "away", mutual: 8 },
+  { id: 3, initials: "MF", name: "M. Ferreira", role: "Platform Engineer", status: "online", mutual: 5 },
+  { id: 4, initials: "RT", name: "R. Tanaka", role: "Security Engineer", status: "offline", mutual: 3 },
+];
+
+const notifications = [
+  { id: 1, text: "K. Owusu sent you a message: \u201CCan you review the failover runbook?\u201D", time: "12m ago", unread: true, dmId: 1 },
+  { id: 2, text: "Your experiment \"ledger-backfill\" finished: 1 failure", time: "1h ago", unread: true },
+  { id: 3, text: "M. Ferreira submitted an intent on gRPC gateway migration", time: "3h ago", unread: false },
+  { id: 4, text: "New contract offer from Northwind Systems", time: "1d ago", unread: false },
+];
+
+const dependencies = [
+  { id: 1, name: "ledger-core", version: "v4.2.1", status: "stable" },
+  { id: 2, name: "grpc-gateway", version: "v1.9.0", status: "outdated" },
+  { id: 3, name: "event-bus", version: "v2.0.0-rc1", status: "blocked" },
+  { id: 4, name: "chaos-toolkit", version: "v0.7.3", status: "stable" },
+];
+
+const contracts = [
+  { id: 1, client: "Northwind Systems", role: "Billing platform review", rate: "$140/hr", status: "active" },
+  { id: 2, client: "Verity Health", role: "SRE on-call coverage", rate: "$120/hr", status: "pending" },
+  { id: 3, client: "Halyard Logistics", role: "Data migration audit", rate: "$155/hr", status: "closed" },
+];
+
+const experiments = [
+  { id: 1, name: "Replayable ledger under load", metric: "40k tx/sec sustained", status: "passed" },
+  { id: 2, name: "Dual-write consistency window", metric: "220ms avg drift", status: "running" },
+  { id: 3, name: "gRPC vs REST latency", metric: "p99 -38ms", status: "passed" },
+  { id: 4, name: "Cold-start cache warm", metric: "timeout at 12k rps", status: "failed" },
+];
+
+const threads = [
+  { id: 1, title: "Event-sourced billing pipeline", lastMessage: "K. Owusu: what happens on replay conflict?", time: "8m", unread: true },
+  { id: 2, title: "gRPC gateway migration, phase one", lastMessage: "M. Ferreira: updated the deprecation doc", time: "1h", unread: false },
+  { id: 3, title: "Chaos game-day: region failover", lastMessage: "You: runbook is attached above", time: "5h", unread: false },
+];
+
+const dms = [
+  { id: 1, initials: "KO", name: "K. Owusu", lastMessage: "Can you review the failover runbook?", time: "12m", unread: true },
+  { id: 2, initials: "RT", name: "R. Tanaka", lastMessage: "Sent over the audit checklist.", time: "2h", unread: false },
+  { id: 3, initials: "AK", name: "A. Kapoor", lastMessage: "Backfill's done, no downtime \u{1F44D}", time: "6h", unread: false },
+];
+
+const initialDmThreads = {
+  1: [
+    { id: 1, from: "them", text: "Hey, quick one \u2014 got a sec?", time: "18m" },
+    { id: 2, from: "them", text: "Can you review the failover runbook?", time: "12m" },
+  ],
+  2: [
+    { id: 1, from: "them", text: "Sent over the audit checklist.", time: "2h" },
+  ],
+  3: [
+    { id: 1, from: "them", text: "Backfill's done, no downtime \u{1F44D}", time: "6h" },
+  ],
+};
+
+const interfaceTools = [
+  { id: 1, name: "GitHub", type: "Source control", status: "connected" },
+  { id: 2, name: "PagerDuty", type: "Incident routing", status: "connected" },
+  { id: 3, name: "Datadog", type: "Observability", status: "available" },
+  { id: 4, name: "Terraform Cloud", type: "Infrastructure", status: "available" },
+];
+
+const evidenceItems = [
+  { id: 1, title: "Billing pipeline load-test report", type: "PDF", verified: true },
+  { id: 2, title: "Region failover runbook", type: "Doc", verified: true },
+  { id: 3, title: "gRPC migration RFC", type: "Doc", verified: false },
+];
+
+const initialPrinciples = [
+  { id: 1, label: "Show trade-offs before conclusions", description: "Every post surfaces constraints before the pitch.", enabled: true },
+  { id: 2, label: "Evidence over claims", description: "Prefer linked runs, runbooks, and metrics to prose.", enabled: true },
+  { id: 3, label: "Public by default", description: "Work is visible to colleagues unless marked private.", enabled: false },
+];
+
+const statusColor = { online: c.teal, away: c.copper, offline: c.inkFaint };
+const statusDot = { passed: c.teal, connected: c.teal, active: c.teal, stable: c.teal,
+  running: c.copper, pending: c.copper, available: c.copper, outdated: c.copper,
+  failed: c.red, blocked: c.red, closed: c.inkFaint };
+
+// ---- shared bits ---------------------------------------------------------
+
+function ProgressRing({ size = 40, pct, color, icon: Icon, iconSize }) {
+  const stroke = 3;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const clamped = Math.min(Math.max(pct, 0), 1);
+  const offset = circumference * (1 - clamped);
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={c.grid} strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius} fill="none"
+          stroke={color} strokeWidth={stroke}
+          strokeDasharray={circumference} strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 0.5s ease" }}
+        />
+      </svg>
+      {Icon && (
+        <Icon size={iconSize || size - 18} style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", color }} />
+      )}
+    </div>
+  );
+}
+
+function CornerMarks() {
+  const style = { position: "absolute", width: 10, height: 10, borderColor: "rgba(206,132,82,0.45)" };
+  return (
+    <>
+      <div style={{ ...style, top: 6, left: 6, borderTop: "1px solid", borderLeft: "1px solid" }} />
+      <div style={{ ...style, top: 6, right: 6, borderTop: "1px solid", borderRight: "1px solid" }} />
+      <div style={{ ...style, bottom: 6, left: 6, borderBottom: "1px solid", borderLeft: "1px solid" }} />
+      <div style={{ ...style, bottom: 6, right: 6, borderBottom: "1px solid", borderRight: "1px solid" }} />
+    </>
+  );
+}
+
+function Panel({ children }) {
+  return (
+    <div className="relative mb-3 px-4 py-3.5" style={{ background: c.bgPanel, border: `1px solid ${c.border}`, borderRadius: 4 }}>
+      <CornerMarks />
+      {children}
+    </div>
+  );
+}
+
+function SectionHeading({ title, subtitle }) {
+  return (
+    <div className="px-4 pt-3 pb-2">
+      <h2 style={{ fontFamily: displayFont, color: c.ink, fontSize: 17, fontWeight: 700 }}>{title}</h2>
+      {subtitle && (
+        <p style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 12, marginTop: 2 }}>{subtitle}</p>
+      )}
+    </div>
+  );
+}
+
+function StatusPill({ status }) {
+  const icon = status === "passed" ? <CheckCircle2 size={12} /> : status === "failed" ? <XCircle size={12} /> : <Loader2 size={12} className={status === "running" ? "animate-spin" : ""} />;
+  return (
+    <span
+      className="flex items-center gap-1 px-2 py-0.5 rounded shrink-0"
+      style={{ fontFamily: monoFont, fontSize: 10.5, color: statusDot[status] || c.inkMuted, border: `1px solid ${statusDot[status] || c.border}55` }}
+    >
+      {icon} {status}
+    </span>
+  );
+}
+
+// ---- post card ------------------------------------------------------------
+
+function PostCard({ post, menuOpenId, setMenuOpenId }) {
+  const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const likeCount = post.likes + (liked ? 1 : 0);
+  const menuOpen = menuOpenId === post.id;
+
+  return (
+    <div className="relative mb-4 px-4 pt-4 pb-3" style={{ background: c.bgPanel, border: `1px solid ${c.border}`, borderRadius: 4 }}>
+      <CornerMarks />
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start gap-3">
+          <div className="relative shrink-0">
+            <div className="flex items-center justify-center rounded-full" style={{ width: 38, height: 38, background: c.copperSoft, border: `1px solid ${c.copper}`, fontFamily: monoFont, color: c.copper, fontSize: 13 }}>
+              {post.initials}
+            </div>
+            <Circle size={9} style={{ position: "absolute", bottom: -1, right: -1, fill: statusColor[post.status], color: c.bgPanel, strokeWidth: 3 }} />
+          </div>
+          <div>
+            <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 14, fontWeight: 600 }}>{post.name}</div>
+            <div style={{ fontFamily: bodyFont, color: c.inkMuted, fontSize: 12.5 }}>{post.role}</div>
+            <div className="flex items-center gap-1 mt-0.5" style={{ fontFamily: monoFont, color: c.inkFaint, fontSize: 11 }}>
+              <span>{post.time} ago</span><span>·</span><Zap size={10} />
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 relative">
+          <button onClick={() => setSaved((s) => !s)} aria-label="Save post">
+            <Star size={16} style={{ color: saved ? c.copper : c.inkFaint, fill: saved ? c.copper : "none" }} />
+          </button>
+          <button onClick={() => setMenuOpenId(menuOpen ? null : post.id)} aria-label="More options">
+            <MoreVertical size={16} style={{ color: c.inkFaint }} />
+          </button>
+          {menuOpen && (
+            <div
+              className="absolute right-0 top-6 z-10 py-1"
+              style={{ background: c.bgPanelRaised, border: `1px solid ${c.border}`, borderRadius: 4, width: 150 }}
+            >
+              {[
+                { label: "Copy link", icon: Link2 },
+                { label: "Edit post", icon: Pencil },
+                { label: "Report", icon: Flag },
+                { label: "Delete", icon: Trash2 },
+              ].map((opt) => (
+                <button
+                  key={opt.label}
+                  onClick={() => setMenuOpenId(null)}
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-left"
+                  style={{ fontFamily: bodyFont, fontSize: 12, color: c.inkMuted }}
+                >
+                  <opt.icon size={13} /> {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <h3 style={{ fontFamily: displayFont, color: c.ink, fontSize: 16.5, fontWeight: 600, marginBottom: 6 }}>{post.title}</h3>
+      <p style={{ fontFamily: bodyFont, color: c.inkMuted, fontSize: 13.5, lineHeight: 1.55, marginBottom: 12 }}>{post.body}</p>
+
+      <div className="flex gap-2 mb-3 flex-wrap">
+        {post.tags.map((t) => (
+          <span key={t} className="px-2 py-0.5 rounded" style={{ fontFamily: monoFont, fontSize: 10.5, color: c.teal, border: `1px solid rgba(95,217,198,0.35)`, background: "rgba(95,217,198,0.06)" }}>
+            #{t}
+          </span>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between pt-3" style={{ borderTop: `1px solid ${c.grid}`, fontFamily: monoFont, fontSize: 12, color: c.inkMuted }}>
+        <div className="flex items-center gap-4">
+          <span>{post.intents} intents</span>
+          <span className="flex items-center gap-1"><MessageCircle size={13} /> {post.comments}</span>
+        </div>
+        <button onClick={() => setLiked((l) => !l)} className="flex items-center gap-1.5" style={{ color: liked ? c.copper : c.inkMuted }}>
+          <Heart size={14} style={{ fill: liked ? c.copper : "none" }} /> {likeCount}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---- section content renderers --------------------------------------------
+
+function FeedView({ posts, menuOpenId, setMenuOpenId }) {
+  return (
+    <div className="px-4 pb-2">
+      {posts.length === 0 ? (
+        <p style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 13, padding: "24px 4px" }}>
+          Nothing matches that search yet.
+        </p>
+      ) : (
+        posts.map((p) => <PostCard key={p.id} post={p} menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />)
+      )}
+    </div>
+  );
+}
+
+function ExploreView() {
+  const [status, setStatus] = useState({}); // { [colleagueId]: "supplied" | "mocked" }
+  const resolve = (id, result) => setStatus((s) => ({ ...s, [id]: result }));
+  const reset = (id) => setStatus((s) => { const n = { ...s }; delete n[id]; return n; });
+
+  return (
+    <div className="px-4 pb-2">
+      <SectionHeading title="Explore" subtitle="Request supply from accounts outside your network" />
+      <div className="grid grid-cols-2 gap-3">
+        {colleagues.map((p) => {
+          const result = status[p.id];
+          return (
+            <div key={p.id} className="relative px-3 py-3" style={{ background: c.bgPanel, border: `1px solid ${c.border}`, borderRadius: 4 }}>
+              <div className="flex items-center justify-center rounded-full mb-2" style={{ width: 34, height: 34, background: c.copperSoft, border: `1px solid ${c.copper}`, fontFamily: monoFont, color: c.copper, fontSize: 12 }}>
+                {p.initials}
+              </div>
+              <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 13, fontWeight: 600 }}>{p.name}</div>
+              <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 11, marginBottom: 8 }}>{p.role}</div>
+
+              {!result ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => resolve(p.id, "supplied")}
+                    className="flex items-center gap-1 px-2 py-1 rounded"
+                    style={{ fontFamily: monoFont, fontSize: 10, color: c.copper, border: `1px solid ${c.copper}` }}
+                    aria-label={`Supply ${p.name}`}
+                  >
+                    <UserPlus size={11} /> Supply
+                  </button>
+                  <button
+                    onClick={() => resolve(p.id, "mocked")}
+                    className="flex items-center gap-1 px-2 py-1 rounded"
+                    style={{ fontFamily: monoFont, fontSize: 10, color: c.inkFaint, border: `1px solid ${c.border}` }}
+                    aria-label={`Mock ${p.name}`}
+                  >
+                    <XCircle size={11} /> Mock
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => reset(p.id)}
+                  className="flex items-center gap-1 px-2 py-1 rounded"
+                  style={{
+                    fontFamily: monoFont, fontSize: 10.5,
+                    color: result === "supplied" ? c.bgDeep : c.red,
+                    background: result === "supplied" ? c.copper : "transparent",
+                    border: `1px solid ${result === "supplied" ? c.copper : c.red}`,
+                  }}
+                  aria-label="Tap to undo"
+                >
+                  {result === "supplied" ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+                  {result === "supplied" ? "Supplied" : "Mocked"}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ListRowView({ title, subtitle, items, renderRow }) {
+  return (
+    <div className="px-4 pb-2">
+      <SectionHeading title={title} subtitle={subtitle} />
+      {items.map((item) => (
+        <Panel key={item.id}>{renderRow(item)}</Panel>
+      ))}
+    </div>
+  );
+}
+
+function TestView() {
+  return (
+    <ListRowView
+      title="Test runs"
+      subtitle="Short clips of your latest test suites"
+      items={testRuns}
+      renderRow={(t) => (
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div style={{ fontFamily: monoFont, color: c.ink, fontSize: 12.5 }} className="truncate">{t.name}</div>
+            <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 11, marginTop: 2 }}>{t.duration} · {t.time}</div>
+          </div>
+          <StatusPill status={t.status} />
+        </div>
+      )}
+    />
+  );
+}
+
+function ColleaguesView() {
+  return (
+    <ListRowView
+      title="Colleagues"
+      subtitle="Accounts you're supplied with on 2uit"
+      items={colleagues}
+      renderRow={(p) => (
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative shrink-0">
+              <div className="flex items-center justify-center rounded-full" style={{ width: 34, height: 34, background: c.copperSoft, border: `1px solid ${c.copper}`, fontFamily: monoFont, color: c.copper, fontSize: 12 }}>{p.initials}</div>
+              <Circle size={8} style={{ position: "absolute", bottom: -1, right: -1, fill: statusColor[p.status], color: c.bgPanel, strokeWidth: 3 }} />
+            </div>
+            <div className="min-w-0">
+              <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 13, fontWeight: 600 }} className="truncate">{p.name}</div>
+              <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 11 }} className="truncate">{p.role} · {p.mutual} mutual</div>
+            </div>
+          </div>
+          <MessageCircle size={16} style={{ color: c.inkFaint }} className="shrink-0" />
+        </div>
+      )}
+    />
+  );
+}
+
+function NotificationsView({ notifs, onRead, onOpenMessage }) {
+  return (
+    <div className="px-4 pb-2">
+      <SectionHeading title="Notifications" subtitle="Tap to open, or to mark as read" />
+      {notifs.map((n) => (
+        <button
+          key={n.id}
+          onClick={() => (n.dmId ? onOpenMessage(n) : onRead(n.id))}
+          className="w-full text-left"
+        >
+          <Panel>
+            <div className="flex items-start gap-2">
+              {n.unread && <span className="shrink-0 mt-1.5 rounded-full" style={{ width: 6, height: 6, background: c.copper }} />}
+              <div className="min-w-0">
+                <p style={{ fontFamily: bodyFont, color: n.unread ? c.ink : c.inkMuted, fontSize: 12.5, lineHeight: 1.5 }}>{n.text}</p>
+                <span style={{ fontFamily: monoFont, color: c.inkFaint, fontSize: 10.5 }}>{n.time}</span>
+              </div>
+            </div>
+          </Panel>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ProfileView() {
+  const stats = [
+    { label: "Posts", value: 24 },
+    { label: "Intents", value: 96 },
+    { label: "Contracts", value: 6 },
+  ];
+  return (
+    <div className="px-4 pb-2">
+      <Panel>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, background: c.copperSoft, border: `1px solid ${c.copper}`, fontFamily: monoFont, color: c.copper, fontSize: 15 }}>YOU</div>
+          <div>
+            <div style={{ fontFamily: displayFont, color: c.ink, fontSize: 16, fontWeight: 700 }}>Your profile</div>
+            <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 12 }}>Full-stack Engineer · Remote</div>
+          </div>
+        </div>
+        <div className="flex justify-between mb-3" style={{ borderTop: `1px solid ${c.grid}`, borderBottom: `1px solid ${c.grid}`, padding: "10px 0" }}>
+          {stats.map((s) => (
+            <div key={s.label} className="text-center">
+              <div style={{ fontFamily: monoFont, color: c.ink, fontSize: 15, fontWeight: 600 }}>{s.value}</div>
+              <div style={{ fontFamily: monoFont, color: c.inkFaint, fontSize: 10 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <button className="flex items-center justify-center gap-1.5 w-full py-2 rounded" style={{ fontFamily: monoFont, fontSize: 12, color: c.copper, border: `1px solid ${c.copper}` }}>
+          <Pencil size={12} /> Edit profile
+        </button>
+      </Panel>
+    </div>
+  );
+}
+
+function DependenciesView() {
+  return (
+    <ListRowView title="Dependencies" subtitle="Packages this work relies on" items={dependencies}
+      renderRow={(d) => (
+        <div className="flex items-center justify-between">
+          <div>
+            <div style={{ fontFamily: monoFont, color: c.ink, fontSize: 12.5 }}>{d.name}</div>
+            <div style={{ fontFamily: monoFont, color: c.inkFaint, fontSize: 11, marginTop: 2 }}>{d.version}</div>
+          </div>
+          <StatusPill status={d.status} />
+        </div>
+      )}
+    />
+  );
+}
+
+function ContractsView() {
+  return (
+    <ListRowView title="Contracts" subtitle="Client engagements, active and past" items={contracts}
+      renderRow={(k) => (
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 13, fontWeight: 600 }} className="truncate">{k.client}</div>
+            <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 11.5 }} className="truncate">{k.role} · {k.rate}</div>
+          </div>
+          <StatusPill status={k.status} />
+        </div>
+      )}
+    />
+  );
+}
+
+function ExperimentsView() {
+  return (
+    <ListRowView title="Experiments" subtitle="Hypotheses tested against real load" items={experiments}
+      renderRow={(e) => (
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 13, fontWeight: 600 }} className="truncate">{e.name}</div>
+            <div style={{ fontFamily: monoFont, color: c.inkFaint, fontSize: 11 }} className="truncate">{e.metric}</div>
+          </div>
+          <StatusPill status={e.status} />
+        </div>
+      )}
+    />
+  );
+}
+
+function ProgressView() {
+  const passedTests = testRuns.filter((t) => t.status === "passed").length;
+  const testPct = testRuns.length ? passedTests / testRuns.length : 0;
+
+  const resolvedExp = experiments.filter((e) => e.status !== "running").length;
+  const expPct = experiments.length ? resolvedExp / experiments.length : 0;
+
+  const activeContracts = contracts.filter((k) => k.status === "active").length;
+  const contractPct = contracts.length ? activeContracts / contracts.length : 0;
+
+  const stableDeps = dependencies.filter((d) => d.status === "stable").length;
+  const depPct = dependencies.length ? stableDeps / dependencies.length : 0;
+
+  const metrics = [
+    { label: "Test pass rate", value: `${passedTests}/${testRuns.length}`, pct: testPct, color: c.teal, icon: ClipboardCheck },
+    { label: "Experiments resolved", value: `${resolvedExp}/${experiments.length}`, pct: expPct, color: c.copper, icon: FlaskConical },
+    { label: "Contracts active", value: `${activeContracts}/${contracts.length}`, pct: contractPct, color: c.teal, icon: Briefcase },
+    { label: "Dependencies stable", value: `${stableDeps}/${dependencies.length}`, pct: depPct, color: c.copper, icon: GitBranch },
+  ];
+
+  return (
+    <div className="px-4 pb-2">
+      <SectionHeading title="Progress" subtitle="Your analytics across tests, experiments, and contracts" />
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        {metrics.map((m) => (
+          <div
+            key={m.label}
+            className="relative flex flex-col items-center text-center px-3 py-4"
+            style={{ background: c.bgPanel, border: `1px solid ${c.border}`, borderRadius: 4 }}
+          >
+            <ProgressRing size={54} pct={m.pct} color={m.color} icon={m.icon} iconSize={20} />
+            <div style={{ fontFamily: monoFont, color: c.ink, fontSize: 13.5, fontWeight: 600, marginTop: 10 }}>{m.value}</div>
+            <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 10.5, marginTop: 2 }}>{m.label}</div>
+          </div>
+        ))}
+      </div>
+      <Panel>
+        <div className="flex items-center gap-3">
+          <ProgressRing size={40} pct={(testPct + expPct + contractPct + depPct) / 4} color={c.copper} icon={TrendingUp} iconSize={17} />
+          <div>
+            <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 12.5, fontWeight: 600 }}>Overall momentum</div>
+            <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 11 }}>Blended across tests, experiments, contracts, and dependencies</div>
+          </div>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function ThreadsView() {
+  return (
+    <ListRowView title="Threads" subtitle="Conversations on your posts" items={threads}
+      renderRow={(t) => (
+        <div className="flex items-start gap-2">
+          {t.unread && <span className="shrink-0 mt-1.5 rounded-full" style={{ width: 6, height: 6, background: c.copper }} />}
+          <div className="min-w-0">
+            <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 13, fontWeight: 600 }} className="truncate">{t.title}</div>
+            <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 11.5 }} className="truncate">{t.lastMessage}</div>
+          </div>
+          <span style={{ fontFamily: monoFont, color: c.inkFaint, fontSize: 10.5 }} className="ml-auto shrink-0">{t.time}</span>
+        </div>
+      )}
+    />
+  );
+}
+
+function MessageView({ openId, setOpenId, threads, setThreads }) {
+  const [draft, setDraft] = useState("");
+
+  const openDm = dms.find((d) => d.id === openId);
+
+  const sendReply = () => {
+    if (!draft.trim() || !openId) return;
+    setThreads((t) => ({
+      ...t,
+      [openId]: [...(t[openId] || []), { id: Date.now(), from: "me", text: draft.trim(), time: "now" }],
+    }));
+    setDraft("");
+  };
+
+  if (openDm) {
+    const msgs = threads[openId] || [];
+    return (
+      <div className="px-4 pb-2 flex flex-col" style={{ minHeight: "60vh" }}>
+        <button onClick={() => setOpenId(null)} className="flex items-center gap-1 mb-3" style={{ fontFamily: monoFont, fontSize: 11, color: c.inkMuted }}>
+          <ChevronLeft size={14} /> Messages
+        </button>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center justify-center rounded-full shrink-0" style={{ width: 32, height: 32, background: c.copperSoft, border: `1px solid ${c.copper}`, fontFamily: monoFont, color: c.copper, fontSize: 11 }}>
+            {openDm.initials}
+          </div>
+          <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 13, fontWeight: 600 }}>{openDm.name}</div>
+        </div>
+
+        <div className="flex-1 flex flex-col gap-2 mb-4">
+          {msgs.map((m) => (
+            <div key={m.id} className={`flex ${m.from === "me" ? "justify-end" : "justify-start"}`}>
+              <div
+                className="px-3 py-2"
+                style={{
+                  maxWidth: "78%",
+                  fontFamily: bodyFont, fontSize: 12.5, lineHeight: 1.45,
+                  color: m.from === "me" ? c.bgDeep : c.ink,
+                  background: m.from === "me" ? c.copper : c.bgPanel,
+                  border: m.from === "me" ? "none" : `1px solid ${c.border}`,
+                  borderRadius: 12,
+                  borderBottomRightRadius: m.from === "me" ? 3 : 12,
+                  borderBottomLeftRadius: m.from === "me" ? 12 : 3,
+                }}
+              >
+                {m.text}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") sendReply(); }}
+            placeholder="Write a reply..."
+            className="flex-1 px-3 py-2 outline-none"
+            style={{ fontFamily: bodyFont, fontSize: 12.5, color: c.ink, background: c.bgPanel, border: `1px solid ${c.border}`, borderRadius: 20 }}
+          />
+          <button
+            onClick={sendReply}
+            className="flex items-center justify-center rounded-full shrink-0"
+            style={{ width: 34, height: 34, background: draft.trim() ? c.copper : c.bgPanelRaised, border: `1px solid ${draft.trim() ? c.copper : c.border}` }}
+            aria-label="Send reply"
+          >
+            <Send size={14} style={{ color: draft.trim() ? c.bgDeep : c.inkFaint }} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 pb-2">
+      <SectionHeading title="Messages" subtitle="Direct messages with colleagues" />
+      {dms.map((m) => {
+        const msgs = threads[m.id] || [];
+        const last = msgs[msgs.length - 1];
+        return (
+          <button key={m.id} onClick={() => setOpenId(m.id)} className="w-full text-left">
+            <Panel>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center rounded-full shrink-0" style={{ width: 32, height: 32, background: c.copperSoft, border: `1px solid ${c.copper}`, fontFamily: monoFont, color: c.copper, fontSize: 11 }}>
+                  {m.initials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 13, fontWeight: 600 }} className="truncate">{m.name}</div>
+                  <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 11.5 }} className="truncate">
+                    {last ? (last.from === "me" ? "You: " : "") + last.text : m.lastMessage}
+                  </div>
+                </div>
+                {m.unread && <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, background: c.copper }} />}
+              </div>
+            </Panel>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function InterfaceView() {
+  return (
+    <ListRowView title="Interface" subtitle="Tools and integrations" items={interfaceTools}
+      renderRow={(i) => (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Plug size={14} style={{ color: c.inkMuted }} />
+            <div>
+              <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 13, fontWeight: 600 }}>{i.name}</div>
+              <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 11 }}>{i.type}</div>
+            </div>
+          </div>
+          <StatusPill status={i.status} />
+        </div>
+      )}
+    />
+  );
+}
+
+function EvidenceView() {
+  return (
+    <div className="px-4 pb-2">
+      <SectionHeading title="Evidence" subtitle="Verified proof of work — once verified, an entry is locked and cannot be altered or copied" />
+      {evidenceItems.map((e) => (
+        <Panel key={e.id}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileCheck size={14} style={{ color: c.inkMuted }} className="shrink-0" />
+              <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 12.5 }} className="truncate">{e.title}</div>
+            </div>
+            {e.verified ? (
+              <span className="flex items-center gap-1 shrink-0" style={{ fontFamily: monoFont, fontSize: 10.5, color: c.teal }}><BadgeCheck size={12} /> locked</span>
+            ) : (
+              <span style={{ fontFamily: monoFont, fontSize: 10.5, color: c.inkFaint }} className="shrink-0">pending</span>
+            )}
+          </div>
+        </Panel>
+      ))}
+    </div>
+  );
+}
+
+function PrinciplesView({ principles, onToggle }) {
+  return (
+    <div className="px-4 pb-2">
+      <SectionHeading title="Principles" subtitle="How work is shown on your profile" />
+      {principles.map((p) => (
+        <Panel key={p.id}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div style={{ fontFamily: bodyFont, color: c.ink, fontSize: 13, fontWeight: 600 }}>{p.label}</div>
+              <div style={{ fontFamily: bodyFont, color: c.inkFaint, fontSize: 11.5, marginTop: 2 }}>{p.description}</div>
+            </div>
+            <button onClick={() => onToggle(p.id)} className="shrink-0" aria-label="Toggle principle">
+              {p.enabled ? <ToggleRight size={26} style={{ color: c.teal }} /> : <ToggleLeft size={26} style={{ color: c.inkFaint }} />}
+            </button>
+          </div>
+        </Panel>
+      ))}
+    </div>
+  );
+}
+
+// ---- compose modal ---------------------------------------------------------
+
+function ComposeModal({ onClose, onPublish }) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  return (
+    <div className="absolute inset-0 z-30 flex flex-col justify-end" style={{ background: "rgba(4,14,24,0.6)" }}>
+      <div className="px-4 pt-4 pb-6" style={{ background: c.bgPanel, borderTop: `1px solid ${c.border}`, borderRadius: "8px 8px 0 0" }}>
+        <div className="flex items-center justify-between mb-3">
+          <span style={{ fontFamily: displayFont, color: c.ink, fontSize: 15, fontWeight: 700 }}>Post a blueprint</span>
+          <button onClick={onClose}><X size={18} style={{ color: c.inkMuted }} /></button>
+        </div>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title"
+          className="w-full px-3 py-2 mb-2 outline-none"
+          style={{ fontFamily: bodyFont, fontSize: 13, color: c.ink, background: c.bgPanelRaised, border: `1px solid ${c.border}`, borderRadius: 4 }}
+        />
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Describe the blueprint, intent, or experiment..."
+          rows={3}
+          className="w-full px-3 py-2 mb-3 outline-none resize-none"
+          style={{ fontFamily: bodyFont, fontSize: 13, color: c.ink, background: c.bgPanelRaised, border: `1px solid ${c.border}`, borderRadius: 4 }}
+        />
+        <button
+          disabled={!title.trim()}
+          onClick={() => { onPublish(title, body); setTitle(""); setBody(""); }}
+          className="w-full py-2.5 rounded"
+          style={{ fontFamily: monoFont, fontSize: 12.5, color: title.trim() ? c.bgDeep : c.inkFaint, background: title.trim() ? c.copper : c.bgPanelRaised, border: `1px solid ${title.trim() ? c.copper : c.border}` }}
+        >
+          Publish
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---- main app -----------------------------------------------------------
+
+export default function TwoUitDashboard() {
+  const [activeSection, setActiveSection] = useState({ row: "secondary", id: "feed" });
+  const [primary, setPrimary] = useState("home");
+  const [secondary, setSecondary] = useState("feed");
+  const [bottom, setBottom] = useState(null);
+
+  const [posts, setPosts] = useState(initialPosts);
+  const [menuOpenId, setMenuOpenId] = useState(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [query, setQuery] = useState("");
+  const [showMenu, setShowMenu] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
+  const [notifs, setNotifs] = useState(notifications);
+  const [principles, setPrinciples] = useState(initialPrinciples);
+  const [dmOpenId, setDmOpenId] = useState(null);
+  const [dmThreads, setDmThreads] = useState(initialDmThreads);
+
+  const goPrimary = (id) => {
+    setPrimary(id);
+    setBottom(null);
+    if (id === "home") { setSecondary("feed"); setActiveSection({ row: "secondary", id: "feed" }); }
+    else setActiveSection({ row: "primary", id });
+  };
+  const goSecondary = (id) => {
+    setSecondary(id);
+    setPrimary("home");
+    setBottom(null);
+    setActiveSection({ row: "secondary", id });
+  };
+  const goBottom = (id) => {
+    setBottom(id);
+    setActiveSection({ row: "bottom", id });
+  };
+
+  const markRead = (id) => setNotifs((ns) => ns.map((n) => (n.id === id ? { ...n, unread: false } : n)));
+  const openMessageFromNotification = (n) => {
+    markRead(n.id);
+    setDmOpenId(n.dmId);
+    goBottom("message");
+  };
+  const togglePrinciple = (id) => setPrinciples((ps) => ps.map((p) => (p.id === id ? { ...p, enabled: !p.enabled } : p)));
+  const publishPost = (title, body) => {
+    setPosts((ps) => [
+      { id: Date.now(), initials: "YOU", name: "You", role: "Full-stack Engineer", status: "online", time: "now", title, body: body || "No description provided.", tags: ["new"], intents: 0, comments: 0, likes: 0 },
+      ...ps,
+    ]);
+    setShowCompose(false);
+    setPrimary("home"); setSecondary("feed"); setActiveSection({ row: "secondary", id: "feed" }); setBottom(null);
+  };
+
+  const filteredPosts = query.trim()
+    ? posts.filter((p) => (p.title + p.body).toLowerCase().includes(query.toLowerCase()))
+    : posts;
+
+  const renderContent = () => {
+    if (activeSection.row === "primary") {
+      switch (activeSection.id) {
+        case "test": return <TestView />;
+        case "colleagues": return <ColleaguesView />;
+        case "progress": return <ProgressView />;
+        case "notifications": return <NotificationsView notifs={notifs} onRead={markRead} onOpenMessage={openMessageFromNotification} />;
+        case "profile": return <ProfileView />;
+        default: return <FeedView posts={filteredPosts} menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />;
+      }
+    }
+    if (activeSection.row === "bottom") {
+      switch (activeSection.id) {
+        case "threads": return <ThreadsView />;
+        case "message": return <MessageView openId={dmOpenId} setOpenId={setDmOpenId} threads={dmThreads} setThreads={setDmThreads} />;
+        case "interface": return <InterfaceView />;
+        case "evidence": return <EvidenceView />;
+        case "principles": return <PrinciplesView principles={principles} onToggle={togglePrinciple} />;
+        default: return null;
+      }
+    }
+    switch (activeSection.id) {
+      case "explore": return <ExploreView />;
+      case "dependencies": return <DependenciesView />;
+      case "contracts": return <ContractsView />;
+      case "experiments": return <ExperimentsView />;
+      default: return <FeedView posts={filteredPosts} menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />;
+    }
+  };
+
+  const unreadCount = notifs.filter((n) => n.unread).length;
+
+  return (
+    <div className="min-h-screen flex justify-center" style={{ background: "#081E30" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+      `}</style>
+
+      <div
+        className="relative w-full flex flex-col"
+        style={{
+          maxWidth: 430, minHeight: "100vh", background: c.bgDeep,
+          backgroundImage: `linear-gradient(${c.grid} 1px, transparent 1px), linear-gradient(90deg, ${c.grid} 1px, transparent 1px)`,
+          backgroundSize: "22px 22px",
+          borderLeft: `1px solid ${c.border}`, borderRight: `1px solid ${c.border}`,
+        }}
+        onClick={() => { if (menuOpenId !== null) setMenuOpenId(null); if (showMenu) setShowMenu(false); }}
+      >
+        {/* top bar */}
+        <div className="flex items-center justify-between px-4 pt-5 pb-3" style={{ borderBottom: `1px solid ${c.gridStrong}` }}>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowCompose(true); }}
+              className="flex items-center justify-center rounded"
+              style={{ width: 26, height: 26, border: `1px solid ${c.copper}` }}
+              aria-label="Post a blueprint"
+            >
+              <Plus size={14} style={{ color: c.copper }} />
+            </button>
+            <span style={{ fontFamily: displayFont, color: c.ink, fontSize: 20, fontWeight: 700, letterSpacing: 0.3 }}>2uit</span>
+          </div>
+          <div className="flex items-center gap-4 relative">
+            <button onClick={(e) => { e.stopPropagation(); setShowSearch((s) => !s); }} aria-label="Search">
+              <Search size={18} style={{ color: showSearch ? c.copper : c.inkMuted }} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); goPrimary("notifications"); }}
+              className="relative"
+              aria-label="Notifications"
+            >
+              <Bell size={18} style={{ color: c.inkMuted }} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex items-center justify-center rounded-full" style={{ width: 13, height: 13, background: c.copper, fontFamily: monoFont, fontSize: 8.5, color: c.bgDeep }}>{unreadCount}</span>
+              )}
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); setShowMenu((m) => !m); }} aria-label="Menu">
+              <MenuIcon size={18} style={{ color: showMenu ? c.copper : c.inkMuted }} />
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 top-7 z-20 py-1" style={{ background: c.bgPanelRaised, border: `1px solid ${c.border}`, borderRadius: 4, width: 150 }}>
+                {[{ label: "Settings", icon: Settings }, { label: "Help", icon: HelpCircle }, { label: "Log out", icon: LogOut }].map((opt) => (
+                  <button key={opt.label} onClick={() => setShowMenu(false)} className="flex items-center gap-2 w-full px-3 py-1.5 text-left" style={{ fontFamily: bodyFont, fontSize: 12, color: c.inkMuted }}>
+                    <opt.icon size={13} /> {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {showSearch && (
+          <div className="px-4 pt-3">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search the feed..."
+              className="w-full px-3 py-2 outline-none"
+              style={{ fontFamily: bodyFont, fontSize: 13, color: c.ink, background: c.bgPanel, border: `1px solid ${c.border}`, borderRadius: 4 }}
+            />
+          </div>
+        )}
+
+        {/* primary tabs */}
+        <div className="flex items-center justify-between px-3 pt-2 pb-2" style={{ borderBottom: `1px solid ${c.gridStrong}` }}>
+          {primaryTabs.map((t) => {
+            const Icon = t.icon;
+            const active = primary === t.id && activeSection.row !== "bottom" && (t.id !== "home" || activeSection.row === "secondary");
+            return (
+              <button key={t.id} onClick={() => goPrimary(t.id)} className="flex flex-col items-center gap-1 px-1.5 py-1">
+                <Icon size={17} style={{ color: active ? c.copper : c.inkFaint }} />
+                <span style={{ fontFamily: monoFont, fontSize: 9.5, color: active ? c.copper : c.inkFaint }}>{t.label}</span>
+                {active && <span style={{ width: 14, height: 2, background: c.copper, borderRadius: 1, marginTop: 1 }} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* secondary pill tabs */}
+        <div className="flex items-center gap-2 px-4 py-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          {secondaryTabs.map((t) => {
+            const Icon = t.icon;
+            const active = activeSection.row === "secondary" && secondary === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => goSecondary(t.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 shrink-0"
+                style={{ fontFamily: monoFont, fontSize: 11.5, borderRadius: 999, border: `1px solid ${active ? c.copper : c.border}`, background: active ? c.copperSoft : "transparent", color: active ? c.copper : c.inkMuted, whiteSpace: "nowrap" }}
+              >
+                <Icon size={13} /> {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* content */}
+        <div className="flex-1 pb-24 overflow-y-auto">{renderContent()}</div>
+
+        {/* compose FAB */}
+        <button
+          onClick={() => setShowCompose(true)}
+          className="absolute flex items-center justify-center rounded-full"
+          style={{ width: 48, height: 48, right: 18, bottom: 76, background: c.copper, boxShadow: "0 4px 14px rgba(206,132,82,0.4)" }}
+          aria-label="Post a blueprint"
+        >
+          <Plus size={22} style={{ color: c.bgDeep }} />
+        </button>
+
+        {/* bottom nav */}
+        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2.5" style={{ background: c.bgPanelRaised, borderTop: `1px solid ${c.gridStrong}` }}>
+          {bottomTabs.map((t) => {
+            const Icon = t.icon;
+            const active = bottom === t.id;
+            return (
+              <button key={t.id} onClick={() => goBottom(t.id)} className="flex flex-col items-center gap-1 px-1">
+                <Icon size={17} style={{ color: active ? c.teal : c.inkFaint }} />
+                <span style={{ fontFamily: monoFont, fontSize: 9, color: active ? c.teal : c.inkFaint }}>{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {showCompose && <ComposeModal onClose={() => setShowCompose(false)} onPublish={publishPost} />}
+      </div>
+    </div>
+  );
+}
